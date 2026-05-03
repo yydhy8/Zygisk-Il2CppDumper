@@ -1,27 +1,45 @@
 name: Build
 on:
   workflow_dispatch:
-      inputs:
-        package_name:
-          description: "com.yingxiong.gw.Android.hero"
-          required: true
+    inputs:
+      package_name:
+        description: "请输入包名，例如 com.yingxiong.gw.Android.hero"
+        required: true
+
+# 解决 Node.js 警告
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/upload-artifact@v4
-    - uses: actions/upload-artifact@v4
-      with:
-        distribution: temurin
-        java-version: 11
-        cache: gradle
-    - run: |
-        chmod +x ./gradlew
-        sed -i 's/moduleDescription = "/moduleDescription = "(${{ github.event.inputs.package_name }}) /g' module.gradle
-        sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" module/src/main/cpp/game.h
-        ./gradlew :module:assembleRelease
-    - uses: actions/upload-artifact@v4
-      with:
-        name: zygisk-il2cppdumper
-        path: out/magisk_module_release/
+      # 第一步：拉取代码（必须要有这个，否则后面找不到文件）
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 第二步：设置 Java 环境（你之前这里写成了 upload-artifact，这是错的）
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+          cache: gradle
+
+      # 第三步：编译
+      - name: Build with Gradle
+        run: |
+          chmod +x ./gradlew
+          # 替换 module.gradle 里的描述
+          sed -i 's/moduleDescription = "/moduleDescription = "(${{ github.event.inputs.package_name }}) /g' module.gradle
+          # 替换 game.h 里的包名
+          sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" module/src/main/cpp/game.h
+          # 执行编译
+          ./gradlew :module:assembleRelease
+
+      # 第四步：上传产物
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zygisk-il2cppdumper
+          path: out/magisk_module_release/
